@@ -30,7 +30,7 @@ Note that I hate Microsoft. (Except for you, Raymond Chen)
 
 The average function format in mu libraries goes like this:
 
-```
+```c
 MUDEF RETURNTYPE mu_SUBJECT_THINGBEINGDONE(muxResult* result, ...)
 ```
 
@@ -44,7 +44,7 @@ The lower level and more simplistic mu libraries usually have minimal overhead, 
 
 Functions that rely on the initiation and termination stucture usually return types that are just macros for the `size_m` type, acting as an index referencer for later usage in different functions, following a general syntax of:
 
-```
+```c
 muObject object = mu_object_create(...);
 ...
 ...mu_object_do_something(...object...)...
@@ -150,7 +150,7 @@ The following is the usual inner file contents of a mu file in order from top to
 
 The file begins with the following format:
 
-```
+```c
 /*
 FILENAME - AUTHOR
 SHORT DESCRIPTION
@@ -169,7 +169,7 @@ This just gives a brief explanation of what the file is for anybody who opens it
 
 The next section is usually the header section of the library, being wrapped like so:
 
-```
+```c
 #ifndef MUX_H
 	#define MUX_H
 
@@ -193,7 +193,7 @@ Within the first `...` is the header section of other libraries that this librar
 
 Other libraries' header sections are included within this section. If they've already been defined, a check for version mismatching is performed that can be turned off with `MU_CHECK_VERSION_MISMATCHING` being defined beforehand. This is, generally, what that looks like:
 
-```
+```c
 /* Library version n.n.n header */
 	
 	#if !defined(MU_CHECK_VERSION_MISMATCHING) && defined(LIBRARY_H) && \
@@ -212,7 +212,7 @@ Other libraries' header sections are included within this section. If they've al
 
 The major, minor, and patch macros are usually defined within the header section, following this general format:
 
-```
+```c
 #define MUX_VERSION_MAJOR n
 #define MUX_VERSION_MINOR n
 #define MUX_VERSION_PATCH n
@@ -222,7 +222,7 @@ The major, minor, and patch macros are usually defined within the header section
 
 Any C standard library dependencies not defined beforehand are usually defined within the header section, following this general format:
 
-```
+```c
 /* C standard library dependencies */
 	
 	#if !defined(mu_function) || \
@@ -255,7 +255,7 @@ Note that these C standard library dependencies are overridable if defined befor
 
 Most initiation/termination structured mu libraries have an incomplete type defined to refer to the global context, later defined in the implementation. It usually follows this general formatting:
 
-```
+```c
 /* Incomplete types */
 
 	typedef struct muxContext muxContext;
@@ -266,7 +266,7 @@ Most initiation/termination structured mu libraries have an incomplete type defi
 
 Most initiation/termination structured mu libraries quickly define a global context variable pointer based on the previously defined incomplete context type, following this general formatting:
 
-```
+```c
 /* Global variables */
 
 	MUDEF muxContext* mux_global_context;
@@ -277,7 +277,7 @@ Most initiation/termination structured mu libraries quickly define a global cont
 
 Most mu libraries define their enumerators within the header section, the most important of which is usually a result enumerator to check for the result of a function, following this general formatting:
 
-```
+```c
 /* Enums */
 
 	MU_ENUM(muxResult,
@@ -293,7 +293,7 @@ Note that this uses the `MU_ENUM` macro function provided by muUtility instead o
 
 Most mu libraries define their macros within the header section. This is usually just filled with the object index references. It usually follows this general formatting:
 
-```
+```c
 /* Macros */
 	
 	#define muObject size_m
@@ -305,7 +305,7 @@ Most mu libraries define their macros within the header section. This is usually
 
 Most mu libraries define their functions within the header section. It usually follows this general formatting:
 
-```
+```c
 /* Functions */
 
 	/* Names */
@@ -327,7 +327,7 @@ Most mu libraries define their functions within the header section. It usually f
 
 The implementation section for most mu libraries comes after the header section, following this general formatting:
 
-```
+```c
 #ifdef MUX_IMPLEMENTATION
 	
 	...
@@ -351,7 +351,7 @@ Within the first `...` is the implementation section of other libraries that thi
 
 Other libraries' implementation sections are included within this section. This is, generally, what that looks like:
 
-```
+```c
 /* Library version n.n.n implementation */
 
 	#ifndef LIBRARY_IMPLEMENTATION
@@ -368,7 +368,7 @@ Other libraries' implementation sections are included within this section. This 
 
 Just like the beginning comment says, the file ends with the license format:
 
-```
+```c
 /*
 ------------------------------------------------------------------------------
 This software is available under 2 licenses -- choose whichever you prefer.
