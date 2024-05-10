@@ -2,7 +2,9 @@
 
 The simplest definition of a 'mu' library is:
 
-a dual-public domain/MIT-licensed C library whose source code and dependencies are stored entirely in one file.
+a dual-public domain/MIT-licensed* C library whose source code and dependencies are stored entirely in one file.
+
+Elaboration on the '*' for licensing is found in the license section.
 
 It is up to the user to decide whether or not a mu library would be better to use in comparison to a traditionally structured project depending on the user's circumstances. Id est, use them if you like, don't if you don't.
 
@@ -115,6 +117,14 @@ Note that the detail about the other libraries included within itself are not pr
 A license is provided with a given mu library (stored at the end of the file and also accompanied with a `license.md` file) that is dual, one being public domain and one being MIT, with the user deciding which license to use. The idea behind this is to have a license as useable and flexible as possible, but having it only as public domain can lead to legal issues that I'm not gonna pretend like I understand :D (I'm a programmer, not a lawyer).
 
 Note that the public domain license also allows you to include any mu library in your software without changing its license.
+
+## Note on OpenGL & Apache 2.0 exception
+
+Some mu libraries have dependencies on OpenGL, meaning that they need to import OpenGL using some loader. No matter the loader, the code for this process is guaranteed to be based on the Khronos specification for OpenGL, which is licensed under Apache 2.0. This means that any mu library or component of it that imports OpenGL also has the Apache 2.0 license attached to it. This will be noted in the proper sections of the library that specify license information.
+
+Note that Vulkan doesn't have this, as it has a built-in exception clause for its license that the mu libraries fall under.
+
+[Altogether, however, you probably don't need to worry about it.](https://github.com/KhronosGroup/OpenGL-Registry/issues/376#issuecomment-596187053)
 
 # Demos
 
