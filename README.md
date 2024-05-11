@@ -92,6 +92,10 @@ MUX_MUY_SUCCESS,
 
 Note that a non-success enumerator *doesn't* necessarily imply that it failed.
 
+## Character encoding
+
+Most mu libraries use UTF-8 as their character encoding, meaning that when a string is specified by the user or returned by the library (besides the name functions), it can be safely assumed that the encoding is UTF-8 unless otherwise explicity noted in the documentation for the library.
+
 ## Name functions
 
 mu libraries usually provide functions for converting enumerators that they provide from their value to a `const char*` string representation. This is done for the purpose of debugging and is most useful with function result enumerator checking.
