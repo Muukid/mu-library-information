@@ -2,9 +2,11 @@
 
 The simplest definition of a 'mu' library is:
 
-a dual-public domain/MIT-licensed* C library whose source code and dependencies are stored entirely in one file.
+a low-overhead dual-public domain/MIT-licensed* C library whose source code and dependencies are stored entirely in one file.
 
-Elaboration on the '*' for licensing is found in the license section.
+Elaboration on the ' * ' for licensing is found in the license section.
+
+Note that although the source code and dependencies are stored entirely in one file, it may use system-defined libraries that need to be linked to, which will be defined in the library's respective documentation.
 
 It is up to the user to decide whether or not a mu library would be better to use in comparison to a traditionally structured project depending on the user's circumstances. Id est, use them if you like, don't if you don't.
 
@@ -20,11 +22,11 @@ The header provides what is essentially the interface for the library's usage, d
 
 The implementation provides the actual source code that makes the library function (99% just actually providing the code for the defined functions). The implementation is triggered by a manual macro defined before inclusion of the file (usually formatted like `MUX_IMPLEMENTATION`), and, if this macro goes undefined, the actual source code for the library will never be provided and will most likely cause errors and/or warnings.
 
-Noe that both sections provide their respective section for its included libraries (ie, if the library muX has a dependency on muY, the header for muY will be stored in the header section of muX and the implementation for muY will be stored in the implementation section of muX). If a library's header/implementation section is already defined, it will be skipped, but a check on a possible version mismatch will be performed and will throw a warning. This functionality is overridable by defining MU_CHECK_VERSION_MISMATCHING.
+Noe that both sections provide their respective section for its included libraries (ie, if the library muX has a dependency on muY, the header for muY will be stored in the header section of muX and the implementation for muY will be stored in the implementation section of muX). If a library's header/implementation section is already defined, it will be skipped, but a check on a possible version mismatch will be performed and will throw a warning. This functionality is overridable by defining `MU_CHECK_VERSION_MISMATCHING`.
 
 ## C/C++ standards and general compiler compatability
 
-mu libraries usually follow both the C99 and C++11 standards. They're tested for compilation with gcc, clang, g++, and clang++, but tested rarely with MSVC due to its difficulty to use through the terminal and its inaccessibility (or impracticality to access) through non-Windows operating systems.
+mu libraries usually follow both the C99 and C++11 standards. They're tested for compilation with gcc, clang, g++, and clang++, with all warnings enabled and all warnings turned into errors, but tested rarely with MSVC due to its difficulty to use through the terminal and its inaccessibility (or impracticality to access) through non-Windows operating systems. Generally, though, the restrictions on the aforementioned compilers make the code compatible with MSVC.
 
 Note that I hate Microsoft. (Except for you, Raymond Chen)
 
@@ -33,42 +35,98 @@ Note that I hate Microsoft. (Except for you, Raymond Chen)
 The average function format in mu libraries goes like this:
 
 ```c
-MUDEF RETURNTYPE mu_SUBJECT_THINGBEINGDONE(muxResult* result, ...)
+MUDEF RETURNTYPE mux_SUBJECT_THINGBEINGDONE(muxContext* context, muxResult* result, ...)
 ```
 
-In particular, almost all functions begin with `muxResult* result` as their first parameter. This is a pointer to a result enumerator to check for the result of the function (see the result enumerator section). This can safely be passed as `MU_NULL_PTR` (or just 0) if you wish to not check for the result of the function.
+If the library is simple enough that it doesn't need a context, then result is usually the first parameter.
 
-## Initiation / Termination structuring
+Oftentimes, there are macros for these functions that allow the user to not explicity pass context and/or result values, to which the function automatically assumes the global context and its respective stored result value; generally, these macros follow the format of:
 
-The lower level and more simplistic mu libraries usually have minimal overhead, and functions are usually able to be called without interruption and without need for prior setup via other parts of the library. However, higher level mu libraries usually need to store information across function calls, and the common structure for this is an initiation/termination structure, in which an initiation function is called before interacting with the library (usually at the beginning of the program's lifetime) and a termination function is called once interaction with the library is done for the program's lifetime (usually right before the program exits).
+```c
+#define mu_SUBJECT_THINGBEINGDONE(...) mux_SUBJECT_THINGBEINGDONE(mux_global_context, &mux_global_context->result, __VA_ARGS__)
+#define mu_SUBJECT_THINGSBEINGDONE_(result, ...) mux_SUBJECT_THINGBEINGDONE(mux_global_context, result, __VA_ARGS__)
+```
+
+This gives the user three ways to use the average function:
+
+```c
+// Fully explicit:
+mux_SUBJECT_THINGBEINGDONE(&context, &result, ...);
+// Explicit result-checking with assumed context:
+mu_SUBJECT_THINGBEINGDONE_(&result, ...);
+// Assumed context, result goes into context:
+mu_SUBJECT_THINGBEINGDONE(...);
+```
+
+This is done because each function starting with the same parameters can be annoying, but assuming either the context or result can make the code unusable with multiple threads or contexts, so all three options are provided.
+
+Some functions end up breaking this mold, usually because they don't need a context, they can't fail (so no need for result checking), or both, to which the macro that would usually use such such parameters goes undefined.
+
+## Context structuring
+
+The lower level and more simplistic mu libraries are usually don't need to store data across functions, meaning most functions can be called without need for prior setup via other parts of the library. However, higher level mu libraries usually need to store information, and the common structure for this is a context creation/destruction structure, in which a context is created & associated with a pointer to a context structure (usually at the beginning of the program's lifetime), and a destruction function is called on the context when it is no longer needed (usually right before the program exits). This structure usually looks like this:
+
+```c
+muxContext context;
+mux_context_create(&context, MU_TRUE);
+
+// ...mu_whatever(...)...
+// context.result
+
+mux_context_destroy(&context);
+```
+
+Inbetween this, the context created is set as the global context and is assumed as such by macros to functions that don't take in a context; the global context being set as such is triggered by the `MU_TRUE` in the context creation function for the example above. The result of functions is stored in `context.result`, with `result` being the library's respective result enumerator.
+
+This model also allows for more explicit context definitions, allowing for multiple contexts to be defined:
+
+```c
+muxContext context1, context2;
+mux_context_create(&context1, MU_FALSE);
+mux_context_create(&context2, MU_FALSE);
+
+// ...mux_whatever(&context1...)...
+// ...mux_whatever(&context2...)...
+
+mux_context_destroy(&context1);
+mux_context_destroy(&context2);
+```
+
+### Warning about context pointers
+
+The assumed context is valid as long as the pointer initially passed to the `mux_context_create` function is valid; the following code would cause undefined behaviour:
+
+```c
+muxContext init() {
+	muxContext context;
+	mux_contex_create(&context);
+	return context;
+}
+
+int main() {
+	// ...
+
+	muxContext context = whatever(); // Context is created, but the pointer is only defined within the scope of the function, meaning that the value returned is likely meaningless.
+
+	mu_whatever(...); // This will now cause undefined behavior, as the original pointer is now dangling.
+}
+```
+
+The inner library uses the pointer initially passed to the context creation function, so it is advised to ensure that the pointer is valid as long as the context exists.
 
 ### Object referencing
 
-Functions that rely on the initiation and termination stucture usually return types that are just macros for the `size_m` type, acting as an index referencer for later usage in different functions, following a general syntax of:
+Functions that rely on context structuring usually return types that are just macros for the `void*` type, acting as a reference to dynamically allocated memory to be dereferenced when used by the library, follwing a general syntax of:
 
 ```c
-muObject object = mu_object_create(...);
+muObject object = mu_object_create(...); // 'object' is now a pointer.
 ...
-...mu_object_do_something(...object...)...
+...mu_object_do_something(...object...)... // The library is now using the pointer to hold information about the object.
 ...
-object = mu_object_destroy(...object...);
+object = mu_object_destroy(...object...); // The object's data is now wrapped up and destroyed, with the pointer being freed. Now 'object' is 0.
 ```
 
-In this given example, `muObject` would be a macro for `size_m`, storing some sort of number to reference this object. In these instances, the macro `MU_NONE` (which is just the maximum value `size_m` can store) is used to refer to an object that doesn't exist.
-
-### Global context
-
-With this structuring usually comes some global context variable (usually in the format of `mux_global_context`) which is a pointer to an incomplete type defined in the header that is filled in the implementation. This global context variable is defined in the header so that the user can check if `mux_global_context` is a null pointer (that is, 0) to verify if the library is in an initiated or terminated state.
-
-### Non-initiation/termination-dependent functions
-
-Most of the time, certain functions within a library are allowed to be called without the library being initialized. These functions are usually noticeable by them not using any library-defined object, instead using purely basic types, but it's always safer to check the documentation to make sure that this is or is not the case.
-
-### Inclusion of muMultithreading
-
-Libraries that follow this global context structure usually also have a dependency on muMultithreading. This is in order to ensure thread safety with objects passed between functions. However, muMultithreading is, on default, not defined when included in these libraries unless the macro `MU_THREADSAFE` is defined before the header of the respective library is defined.
-
-The actual full thread safety of the library is not always guaranteed, however, even if muMultithreading is a dependency, so be sure to read up on the documentation for the library to be sure.
+The reason why `object` needs to be dynamically allocated and freed is because the exact memory that `object` will take up cannot always be known beforehand. For example, in muCOSA, a library that can handle window management, exactly *what* a 'window' is defined as can depend on the window system currently running. It could be assumed that only one window system can be defined at a time, but then that makes operating systems that can use multiple window systems (for example, Linux with X11 and Wayland) need to have separately-compiled versions of muCOSA, stored rather as separate library files or as separate executables. A `union` could be used, but risks taking up more memory than is needed.
 
 ## Inclusion of muUtility
 
@@ -76,7 +134,7 @@ The library muUtility is usually included in a mu library. This library defines 
 
 ### Usage of non-secure functions
 
-mu libraries often use non-secure functions that will trigger warnings on certain compilers. These warnings are, to put it lightly, dumb, so the header section of muUtility defines `_CRT_SECURE_NO_WARNINGS` (unless `MU_SECURE_WARNINGS` is defined). However, it is not guaranteed that this definition will actually turn the warnings off, which at that point, they have to be manually turned off by the user.
+mu libraries often use non-secure functions that will trigger warnings on certain compilers. These warnings are, to put it lightly, dumb, so the header section of muUtility defines `_CRT_SECURE_NO_WARNINGS` (unless `MU_SECURE_WARNINGS` is defined). However, it is not guaranteed that this definition will actually turn the warnings off, which at that point, they have to be manually turned off by the user, or the functions have to be overriden.
 
 ## Result enumerator
 
@@ -90,11 +148,25 @@ MUX_MUY_SUCCESS,
 ... (other muY enumerators)
 ```
 
-Note that a non-success enumerator *doesn't* necessarily imply that it failed.
+## Low overhead
+
+Most mu libraries are low overhead, meaning that they aim to perform as few computations and checks as possible to achieve their tasks.
+
+### Fail safety
+
+The fail safety of mu libraries generally hinges on the following principle:
+
+Proper error-checking will be performed on operations reasonably outside of the user's control, and error-checking will not be performed on factors in which the user has reasonable control over and can reasonably check for validity.
+
+This principle establishes low overhead at the cost of safety; for example, virtually every function that takes in a context can crash the application instantly if passed an invalid pointer to a context (including null pointers).
+
+### Thread safety
+
+Most mu libraries are *not* thread-safe for low overhead purposes. Most mu libraries assume that each 'object' (a `void*` reference that needs a context to be created) will not be accessed by more than one thread at a time, so if a program is using a mu library in a multi-threaded manner, it is best practice to protect each object that will be used by multiple threads under a thread lock unless otherwise specified by the library.
 
 ## Character encoding
 
-Most mu libraries use UTF-8 as their character encoding, meaning that when a string is specified by the user or returned by the library (besides the name functions), it can be safely assumed that the encoding is UTF-8 unless otherwise explicity noted in the documentation for the library.
+Most mu libraries use UTF-8 as their character encoding, meaning that when a string is specified by the user or returned by the library (besides the name functions), it can be safely assumed that the encoding is UTF-8 unless otherwise explicity noted in the documentation for the library if relevant.
 
 ## Name functions
 
@@ -113,6 +185,8 @@ mu libraries usually have every single dependency on the C standard library over
 # Documentation
 
 The documentation provided with a mu library (usually in the form of a single file, `README.md`) explicity states what the library does and how to use it, bringing up every relevant function, variable, macro, C standard library dependency, other libraries stored within the library, struct, enumerator, et cetera.
+
+The documentation is usually also defined in the file itself with comments, using special symbols interpreted by `muDOG`, a custom-made tool for inline documentation for mu libraries that allows Markdown to be written within the file.
 
 Note that the detail about the other libraries included within itself are not provided, only the fact that they're provided and the version.
 
@@ -138,7 +212,7 @@ mu libraries are usually provided with a folder for demos that provide example p
 
 ## Why C?
 
-C was chosen for the mu libraries due to its high compatibility with devices, libraries, and even other programming languages in many cases. C++ also has this, but to a significantly lower extent, especially in regard to compatability with other programming languages.
+C was chosen for the mu libraries due to its high compatibility with devices, libraries, and even other programming languages in many cases. C++ also has this, but to a significantly lower extent, especially in regards to compatability with other programming languages.
 
 ## Why all one file?
 
@@ -153,6 +227,12 @@ or
 "Man, this sucks."
 
 I'm sorry, but I'm a sucker for simplicity, and I've never really run into a case where I'm using a header-only single-file library and had a hard time importing or using it. For my cases, they work, and they work well, so I think that it's safe to presume that the same would apply for many others.
+
+## How do you navigate these files?
+
+Most of these files make use of tab characters to allow code editors to automatically open/close various relevant sections. The high levels of indentation caused by this make it only easily viewable if the relevant code editor has tab characters defined with only ~1-3 spaces.
+
+I won't say that this makes it a piece of cake, but it definitely makes it usable in my experience.
 
 # Usual inner file contents
 
@@ -178,6 +258,10 @@ More explicit license information at the end of file.
 ```
 
 This just gives a brief explanation of what the file is for anybody who opens it. The `...` could be virtually anything; it's usually notes such as `@MENTION ...` or `@TODO ...`.
+
+## Inline documentation
+
+From here on out, a lot of inline documentation later scanned by the tool `muDOG` to generate Markdown documentation is defined in comments.
 
 ## Header section
 
@@ -265,28 +349,6 @@ Any C standard library dependencies not defined beforehand are usually defined w
 
 Note that these C standard library dependencies are overridable if defined beforehand, as this formatting would suggest, and are all listed in the documentation for their respective mu library.
 
-### Incomplete types
-
-Most initiation/termination structured mu libraries have an incomplete type defined to refer to the global context, later defined in the implementation. It usually follows this general formatting:
-
-```c
-/* Incomplete types */
-
-	typedef struct muxContext muxContext;
-
-```
-
-### Global variables
-
-Most initiation/termination structured mu libraries quickly define a global context variable pointer based on the previously defined incomplete context type, following this general formatting:
-
-```c
-/* Global variables */
-
-	MUDEF muxContext* mux_global_context;
-
-```
-
 ### Enumerators
 
 Most mu libraries define their enumerators within the header section, the most important of which is usually a result enumerator to check for the result of a function, following this general formatting:
@@ -302,18 +364,6 @@ Most mu libraries define their enumerators within the header section, the most i
 ```
 
 Note that this uses the `MU_ENUM` macro function provided by muUtility instead of the usual actual `enum` keyword in C because I've run into issues with MSVC and enumerators. Note that I hate Microsoft (of course, except for you, Raymond Chen).
-
-### Macros
-
-Most mu libraries define their macros within the header section. This is usually just filled with the object index references. It usually follows this general formatting:
-
-```c
-/* Macros */
-	
-	#define muObject size_m
-	...
-
-```
 
 ### Functions
 
