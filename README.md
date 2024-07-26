@@ -216,17 +216,17 @@ C was chosen for the mu libraries due to its high compatibility with devices, li
 
 ## Why all one file?
 
-I'm not going to argue for or against a header-only single-file library format, as I don't think I'm personally experienced enough in the entire C/C++ library ecosystem and relevant build systems to make such a call with any degree of confidence.
+I'm not going to argue for or against a single-file library format, as I don't think I'm personally experienced enough in the entire C/C++ library ecosystem and relevant build systems to make such a call with any degree of confidence.
 
 What I will say is that when I'm programming in C or C++, I often find myself thinking one of two things when importing another library:
 
-"Man, this is so easy because it's header-only single-file."
+"Man, this is so easy because it's single-file."
 
 or
 
 "Man, this sucks."
 
-I'm sorry, but I'm a sucker for simplicity, and I've never really run into a case where I'm using a header-only single-file library and had a hard time importing or using it. For my cases, they work, and they work well, so I think that it's safe to presume that the same would apply for many others.
+I'm sorry, but I'm a sucker for simplicity, and I've never really run into a case where I'm using a single-file library and had a hard time importing or using it. For my cases, they work, and they work well, so I think that it's safe to presume that the same would apply for many others.
 
 ## How do you navigate these files?
 
